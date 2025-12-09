@@ -1,0 +1,20 @@
+# macOS noise
+.DS_Store
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log
+pnpm-debug.log*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Go binaries
+ipchecker-badips/ipchecker-badips
+
+# Artifacts
+function.zip

@@ -1,0 +1,48 @@
+stages:
+  - test
+
+php-tests:
+  stage: test
+  image: php:7.4
+  script:
+    - cd ipchecker-totalips && sh test.sh
+    - cd ../ipchecker-totalemptyips && sh test.sh
+
+python-totalvalid:
+  stage: test
+  image: python:3.11
+  script:
+    - cd ipchecker-totalvalidips
+    - pip install -r requirements.txt
+    - pip install pytest
+    - pytest
+
+node-classify:
+  stage: test
+  image: node:18
+  script:
+    - cd ipchecker-classifyips
+    - npm install
+    - npm test
+
+node-country:
+  stage: test
+  image: node:18
+  script:
+    - cd country-fn
+    - npm install
+    - npm test
+
+java-badips:
+  stage: test
+  image: maven:3.9-eclipse-temurin-17
+  script:
+    - cd ipchecker-badips-java
+    - mvn test
+
+monitor-lint:
+  stage: test
+  image: python:3.11
+  script:
+    - cd ipchecker-monitor
+    - python -m py_compile monitor.py

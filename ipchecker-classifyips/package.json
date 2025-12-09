@@ -1,0 +1,12 @@
+{
+  "name": "ipchecker-classifyips",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node test_classify.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
