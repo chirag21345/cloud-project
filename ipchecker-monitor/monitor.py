@@ -10,7 +10,7 @@ import requests
 from flask import Flask, jsonify
 
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8090")
-INTERVAL = int(os.getenv("MONITOR_INTERVAL", "0"))
+INTERVAL = int(os.getenv("MONITOR_INTERVAL", "60"))
 ALERT_URL = os.getenv("ALERT_URL", "")
 SMTP_HOST = os.getenv("SMTP_HOST", "")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
@@ -201,10 +201,7 @@ def last():
 
 @app.route("/metrics", methods=["GET"])
 def metrics():
-    global last_result
-    if last_result.get("status") in ("not_run", None):
-        last_result = run_checks()
-    lines = []
+    lines = [f'ipchecker_monitor_ready {0 if last_result.get("status") in ("not_run", None) else 1}']
     for c in last_result.get("checks", []):
         svc = c.get("name", "")
         ok_val = c.get("ok_numeric", 1 if c.get("ok") else 0)

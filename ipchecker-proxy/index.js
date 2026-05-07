@@ -6,11 +6,45 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 8090;
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
+if (!ADMIN_TOKEN) {
+  console.warn('[proxy] ADMIN_TOKEN not set — /admin/* and POST /routes will return 503');
+}
 app.use(express.json());
 app.use((req, res, next) => {
   res.set('Access-Control-Allow-Origin', '*');
   next();
 });
+
+function requireAdmin(req, res, next) {
+  if (!ADMIN_TOKEN) {
+    return res.status(503).json({ error: true, message: 'admin disabled (ADMIN_TOKEN unset)' });
+  }
+  const header = req.get('X-Admin-Token') || (req.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+  if (header !== ADMIN_TOKEN) {
+    return res.status(401).json({ error: true, message: 'unauthorized' });
+  }
+  next();
+}
+
+function isSafeProbeTarget(rawUrl) {
+  let u;
+  try {
+    u = new URL(rawUrl);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
+  const host = u.hostname.toLowerCase();
+  if (host === 'localhost' || host === '0.0.0.0' || host === '::1') return false;
+  if (/^127\./.test(host)) return false;
+  if (/^10\./.test(host)) return false;
+  if (/^192\.168\./.test(host)) return false;
+  if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host)) return false;
+  if (/^169\.254\./.test(host)) return false;
+  if (host.endsWith('.internal') || host === 'host.docker.internal') return false;
+  return true;
+}
 
 let routesConfig = {};
 const rrState = {};
@@ -20,13 +54,22 @@ function loadConfig() {
   try {
     const raw = fs.readFileSync(cfgPath, 'utf-8');
     routesConfig = JSON.parse(raw);
-    Object.keys(routesConfig).forEach((k) => {
-      if (!rrState[k]) rrState[k] = 0;
-    });
-    console.log('Proxy config loaded');
   } catch (e) {
     console.error('Failed to load config.json', e);
   }
+  if (process.env.ROUTES_JSON) {
+    try {
+      const overrides = JSON.parse(process.env.ROUTES_JSON);
+      routesConfig = { ...routesConfig, ...overrides };
+      console.log('[proxy] applied ROUTES_JSON override');
+    } catch (e) {
+      console.error('[proxy] ROUTES_JSON parse failed', e);
+    }
+  }
+  Object.keys(routesConfig).forEach((k) => {
+    if (!rrState[k]) rrState[k] = 0;
+  });
+  console.log('Proxy config loaded');
 }
 
 function saveConfig() {
@@ -47,7 +90,7 @@ app.get('/routes', (req, res) => {
   res.json({ error: false, routes: routesConfig });
 });
 
-app.post('/routes', (req, res) => {
+app.post('/routes', requireAdmin, (req, res) => {
   if (typeof req.body !== 'object') {
     return res.status(400).json({ error: true, message: 'invalid payload' });
   }
@@ -59,7 +102,8 @@ app.post('/routes', (req, res) => {
   res.json({ error: false, routes: routesConfig });
 });
 
-// Admin GET endpoints (CRUD via query params)
+app.use('/admin', requireAdmin);
+
 app.get('/admin/reload', (req, res) => {
   loadConfig();
   res.json({ error: false, routes: routesConfig });
@@ -85,6 +129,9 @@ app.get('/admin/probe', async (req, res) => {
   const target = req.query.target;
   if (!svc || !target) {
     return res.status(400).json({ error: true, message: 'service and target required' });
+  }
+  if (!isSafeProbeTarget(target)) {
+    return res.status(400).json({ error: true, message: 'target rejected (private/loopback/non-http(s) blocked)' });
   }
   try {
     const r = await fetch(target, { method: 'GET', redirect: 'manual' });

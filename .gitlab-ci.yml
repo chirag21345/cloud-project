@@ -22,7 +22,7 @@ node-classify:
   image: node:18
   script:
     - cd ipchecker-classifyips
-    - npm install
+    - npm ci
     - npm test
 
 node-country:
@@ -30,12 +30,12 @@ node-country:
   image: node:18
   script:
     - cd country-fn
-    - npm install
+    - npm ci
     - npm test
 
 java-badips:
   stage: test
-  image: maven:3.9-eclipse-temurin-17
+  image: maven:3.9-eclipse-temurin-21
   script:
     - cd ipchecker-badips-java
     - mvn test

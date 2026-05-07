@@ -18,3 +18,9 @@ ipchecker-badips/ipchecker-badips
 
 # Artifacts
 function.zip
+
+# Runtime state
+ipchecker-store/data/store.json
+
+# Java build output
+ipchecker-badips-java/target/
